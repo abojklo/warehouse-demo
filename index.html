@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#030304" />
+<meta name="description" content="Protektor Warehouse — a raw industrial complex in Košice – Šaca, available for rave, festival, film and brand production." />
+<title>Protektor Warehouse — Raw Industrial Event Space</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#030304; --white:#f5f5f2; --muted:#9a9a9f;
+    --cyan:#63c8ff; --accent:#4f7fff;
+    --sans:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --display:'Inter', var(--sans);
+  }
+  *{box-sizing:border-box;}
+  html,body{ margin:0; height:100%; background:var(--ink); color:var(--white); font-family:var(--sans); }
+  a{ color:inherit; }
+  ::selection{ background:var(--accent); color:var(--ink); }
+  :focus-visible{ outline:2px solid var(--cyan); outline-offset:3px; }
+
+  #stage{ position:fixed; inset:0; z-index:1; overflow:hidden; }
+  #reel{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .scroll-spacer{ height:600vh; position:relative; z-index:0; }
+
+  .vignette{ position:absolute; inset:0; pointer-events:none; z-index:2;
+    background:radial-gradient(ellipse at center, transparent 40%, rgba(3,3,4,.62) 100%); }
+  .grain{ position:absolute; inset:0; pointer-events:none; z-index:2; opacity:.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+  .nav{ position:absolute; top:0; left:0; right:0; z-index:6; display:flex; align-items:center; justify-content:space-between;
+    padding:20px clamp(20px,4vw,48px); }
+  .nav .brand{ display:flex; align-items:center; gap:10px; }
+  .nav .brand img{ width:30px; height:30px; display:block; }
+  .nav .brand span{ font-family:var(--display); font-weight:700; font-size:14px; letter-spacing:.01em; }
+  .nav-right{ display:flex; align-items:center; gap:10px; }
+  .btn-nav{ height:38px; padding:0 16px; font-size:12px; }
+  .btn-nav.btn-tickets img{ height:14px; }
+
+  .hud{ position:absolute; inset:0; z-index:5; pointer-events:none; perspective:1100px; }
+  /* Depth text system: each block lives at a Z position in the same 3D space as
+     the footage. "Emerge" chapters start far behind the camera (small, blurred)
+     and grow into full size/clarity as you scroll, then hold in place — the next
+     chapter arrives the same way, overtaking it. The hero "door sign" instead
+     starts already in place and recedes into the depth as you move past it. */
+  .chapter{ position:absolute; left:0; right:0; top:50%; padding:0 clamp(20px,6vw,90px);
+    opacity:0; transform-style:preserve-3d; will-change:transform, opacity, filter; display:flex; flex-direction:column; }
+  .chapter[data-align="left"]{ align-items:flex-start; text-align:left; transform-origin:left center; }
+  .chapter[data-align="right"]{ align-items:flex-end; text-align:right; transform-origin:right center; }
+  .chapter[data-align="center"]{ align-items:center; text-align:center; transform-origin:center center; }
+
+  .eyebrow{ font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--cyan); margin:0 0 18px; }
+  .chapter h1, .chapter h2{ font-family:var(--display); font-weight:700; margin:0; line-height:1.08; letter-spacing:-.02em;
+    overflow-wrap:normal; word-break:normal; }
+
+  /* the door sign */
+  #chap-hero{ top:42%; }
+  .door-banner{ display:flex; flex-direction:column; align-items:center; gap:14px; }
+  .door-banner img{ width:clamp(64px,9vw,110px); height:auto; display:block; }
+  .door-wordmark{ font-family:var(--display); font-weight:700; font-size:clamp(26px,4.2vw,48px); letter-spacing:0; margin:0; }
+  .hero-tag{ margin:2px 0 0; max-width:400px; font-size:15px; color:var(--muted); line-height:1.4; }
+  .hero-genres{ margin-top:6px; font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--white); }
+  .hero-genres b{ color:var(--accent); font-weight:600; }
+  .scroll-cue{ position:absolute; bottom:38px; left:50%; transform:translateX(-50%); font-size:11px; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .scroll-cue::after{ content:""; width:1px; height:34px; background:linear-gradient(var(--muted), transparent); animation:cue 1.8s ease-in-out infinite; }
+  @keyframes cue{ 0%{ transform:scaleY(0); transform-origin:top; } 50%{ transform:scaleY(1); transform-origin:top; } 51%{ transform-origin:bottom; }
+    100%{ transform:scaleY(0); transform-origin:bottom; } }
+
+  h2.chap-heading{ font-size:clamp(30px,4.6vw,54px); max-width:20ch; }
+  .chapter p.body{ margin:22px 0 0; max-width:40ch; font-size:17px; line-height:1.6; color:var(--muted); overflow-wrap:normal; }
+
+  /* the grounding card: gives every 3D-floating text block real, visible
+     presence and a real shadow, regardless of how dark the footage behind it is */
+  .chapter-card{ background:rgba(6,7,9,.4); border:1px solid rgba(255,255,255,.09); border-radius:28px;
+    padding:clamp(30px,4vw,54px) clamp(32px,4.6vw,60px); backdrop-filter:blur(16px) saturate(150%);
+    -webkit-backdrop-filter:blur(16px) saturate(150%); max-width:680px; min-width:0;
+    box-shadow:0 36px 60px -22px rgba(0,0,0,.75), inset 0 1px rgba(255,255,255,.08); }
+  #chap-hero .chapter-card{ background:rgba(6,7,9,.32); max-width:none; }
+
+  /* image-beside-text: text card on one side, photo on the opposite side of
+     the same row — not nested together, so each reads as its own object */
+  .chapter.split-layout{ flex-direction:row !important; align-items:center; justify-content:space-between;
+    gap:clamp(24px,4vw,64px); }
+  .chapter.split-layout.reverse{ flex-direction:row-reverse !important; }
+  .chapter.split-layout .chapter-card{ flex:1 1 560px; max-width:620px; }
+  .side-photo{ width:clamp(200px,25vw,360px); height:clamp(200px,25vw,360px); object-fit:cover; border-radius:24px;
+    flex:none; box-shadow:0 34px 64px -20px rgba(0,0,0,.65); filter:grayscale(.12) contrast(1.05); }
+
+  #chap-fusion .split{ font-family:var(--display); font-weight:700; font-size:clamp(26px,4vw,46px); line-height:1.25; letter-spacing:-.005em; max-width:26ch; }
+  #chap-fusion .split .x{ color:var(--accent); padding:0 .18em; }
+
+  .detail-list{ margin-top:26px; display:flex; flex-direction:column; gap:16px; }
+  .detail-list div{ display:flex; gap:16px; font-size:15px; }
+  .detail-list dt{ width:150px; flex:none; text-transform:uppercase; letter-spacing:.1em; font-size:11px; color:var(--muted); padding-top:4px; }
+  .detail-list dd{ margin:0; font-size:18px; line-height:1.35; }
+  .detail-list dd small{ display:block; font-size:13px; color:var(--muted); font-weight:400; margin-top:2px; }
+
+  .finale h2{ font-size:clamp(30px,4.6vw,52px); max-width:20ch; }
+  .cta-row{ margin-top:30px; display:flex; gap:14px; flex-wrap:wrap; pointer-events:auto; }
+  .btn{ display:inline-flex; align-items:center; justify-content:center; gap:10px; height:50px; padding:0 24px; border-radius:999px;
+    font-size:14px; font-weight:500; letter-spacing:.01em; transition:transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .22s, background .22s, border-color .22s; }
+  .btn:hover{ transform:translateY(-2px); }
+  .btn-tickets{ background:var(--white); color:#161617; box-shadow:0 14px 30px -12px rgba(0,0,0,.55); }
+  .btn-tickets:hover{ box-shadow:0 18px 34px -10px rgba(99,200,255,.35), 0 14px 30px -12px rgba(0,0,0,.55); }
+  .btn-tickets img{ height:18px; width:auto; display:block; }
+  .btn-tickets span{ color:#161617; }
+  .btn-ghost{ background:rgba(245,245,242,.07); border:1px solid rgba(245,245,242,.28);
+    backdrop-filter:blur(14px) saturate(160%); -webkit-backdrop-filter:blur(14px) saturate(160%); color:var(--white); }
+  .btn-ghost:hover{ border-color:var(--cyan); background:rgba(99,200,255,.12); }
+
+  .rail{ position:absolute; right:clamp(16px,3vw,40px); top:50%; transform:translateY(-50%); z-index:6;
+    display:flex; flex-direction:column; gap:14px; }
+  .rail i{ display:block; width:6px; height:6px; border-radius:50%; background:rgba(245,245,242,.25); transition:background .3s, transform .3s; }
+  .rail i.active{ background:var(--cyan); transform:scale(1.6); }
+
+  .footer-credit{ display:none; }
+
+  /* ================= Footer: all reference info lives here, consolidated ================= */
+  #info{ position:relative; z-index:10; background:#08080a; border-top:1px solid #232327; color:var(--white); }
+  .info-wrap{ width:min(1100px, 100% - 48px); margin-inline:auto; padding:90px 0 40px; }
+  .info-top{ display:flex; justify-content:space-between; align-items:flex-end; gap:24px; flex-wrap:wrap;
+    padding-bottom:36px; border-bottom:1px solid #232327; }
+  .info-top .brand-line{ font-family:var(--display); font-weight:700; font-size:22px; letter-spacing:-.01em; }
+  .info-top p{ margin:8px 0 0; max-width:46ch; color:#a7a7ac; font-size:15px; line-height:1.5; }
+  .info-cols{ margin-top:40px; display:grid; grid-template-columns:repeat(4,1fr); gap:36px; }
+  .info-col h4{ margin:0 0 16px; font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  .info-col p, .info-col a{ font-size:14.5px; line-height:1.6; color:#c7c7cc; }
+  .info-col ul{ margin:0; padding:0; list-style:none; display:flex; flex-direction:column; gap:9px; }
+  .info-col a{ display:inline-block; transition:color .2s; }
+  .info-col a:hover{ color:var(--white); }
+  .info-specs{ margin-top:44px; display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:#232327; border:1px solid #232327; }
+  .info-spec{ background:#0d0d0f; padding:22px 20px; }
+  .info-spec .num{ font-family:var(--display); font-weight:700; font-size:24px; }
+  .info-spec .unit{ font-size:12px; color:var(--accent); margin-left:2px; }
+  .info-spec .lbl{ margin-top:6px; font-size:12px; color:#8b8b90; line-height:1.4; }
+  .info-bottom{ margin-top:44px; padding-top:24px; border-top:1px solid #232327; display:flex; justify-content:space-between;
+    gap:16px; flex-wrap:wrap; font-size:12px; color:#7d7d82; }
+  @media (max-width:820px){
+    .info-cols{ grid-template-columns:repeat(2,1fr); row-gap:30px; }
+    .info-specs{ grid-template-columns:repeat(2,1fr); }
+  }
+
+  #loading{ position:fixed; inset:0; z-index:50; background:var(--ink); display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:18px; transition:opacity .6s ease, visibility .6s ease; padding:24px; text-align:center; }
+  #loading img{ width:64px; height:64px; mix-blend-mode:screen; }
+  #loading .lw{ font-family:var(--display); font-weight:600; font-size:13px; letter-spacing:.24em; }
+  #loading .bar{ width:min(240px,60vw); height:2px; background:rgba(245,245,242,.15); overflow:hidden; }
+  #loading .bar i{ display:block; height:100%; width:0%; background:var(--cyan); transition:width .15s ease; }
+  #loading .status{ font-size:11px; color:var(--muted); }
+  body.loaded #loading{ opacity:0; visibility:hidden; }
+
+  #error-panel{ display:none; position:fixed; inset:0; z-index:60; background:rgba(3,3,4,.96); color:var(--white);
+    align-items:center; justify-content:center; padding:24px; }
+  #error-panel.show{ display:flex; }
+  #error-panel .box{ max-width:560px; border:1px solid rgba(255,59,59,.4); background:rgba(255,59,59,.06); border-radius:16px; padding:28px 30px; }
+  #error-panel h3{ margin:0 0 10px; font-family:var(--display); font-weight:700; font-size:19px; color:var(--accent); }
+  #error-panel p{ margin:0 0 10px; font-size:14px; line-height:1.55; color:#d7d7d5; }
+  #error-panel code{ display:block; background:rgba(255,255,255,.06); padding:10px 12px; border-radius:8px; font-size:12.5px;
+    margin:6px 0 14px; word-break:break-all; color:var(--cyan); }
+
+  @media (max-width:720px){
+    .chapter p.body{ font-size:15.5px; }
+    .rail{ display:none; }
+    .detail-list dt{ width:120px; }
+    .nav .btn-ghost{ display:none; }
+    .chapter.split-layout{ flex-direction:column !important; }
+    .side-photo{ width:100%; height:180px; }
+  }
+  @media (prefers-reduced-motion:reduce){
+    .scroll-cue::after{ animation:none; }
+    *{ transition-duration:.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div id="loading">
+    <div class="lw">PROTEKTOR WAREHOUSE</div>
+    <div class="bar"><i id="loading-bar"></i></div>
+    <div class="status" id="loading-status">Loading footage… 0%</div>
+  </div>
+
+  <div id="error-panel">
+    <div class="box">
+      <h3>The footage sprites didn't load</h3>
+      <p>The page tried to load sprite sheets from a <code style="display:inline;padding:1px 5px;">sprites</code> folder next to this HTML file and couldn't find them.</p>
+      <p>Make sure the folder structure looks like this, with no zip file left unextracted:</p>
+      <code>index.html<br>hall-archival-1.jpg<br>hall-archival-2.jpg<br>sprites/sprite_01.jpg<br>sprites/sprite_02.jpg … sprite_05.jpg</code>
+    </div>
+  </div>
+
+  <div id="stage">
+    <canvas id="reel"></canvas>
+    <div class="vignette"></div>
+    <div class="grain"></div>
+
+    <nav class="nav">
+      <a class="brand" href="#top">
+        <span>PROTEKTOR WAREHOUSE</span>
+      </a>
+      <div class="nav-right">
+      </div>
+    </nav>
+
+    <div class="hud">
+      <section class="chapter" id="chap-hero" data-align="center" data-motion="recede" data-start="0" data-end="0.22">
+        <div class="chapter-card door-banner">
+          <h1 class="door-wordmark">PROTEKTOR WAREHOUSE</h1>
+          <p class="hero-tag">Raw industrial power, staged.</p>
+          <p class="hero-genres">Techno <b>·</b> Drum &amp; Bass <b>·</b> Hardcore</p>
+        </div>
+      </section>
+
+      <section class="chapter split-layout" id="chap-space" data-align="left" data-start="0.22" data-end="0.38">
+        <div class="chapter-card">
+          <p class="eyebrow">The room</p>
+          <h2 class="chap-heading">Forget polished,<br>restrictive venues.</h2>
+          <p class="body">Soaring ceilings, massive concrete pillars, exposed steel trusses — an undeniable underground aesthetic, built for monumental light installations, lasers, and boundary-pushing production.</p>
+        </div>
+        <img class="side-photo" src="./hall-archival-2.jpg" alt="Archival photo of the warehouse's industrial hall" />
+      </section>
+
+      <section class="chapter" id="chap-fusion" data-align="right" data-start="0.42" data-end="0.56">
+        <div class="chapter-card">
+          <p class="split">Sound <span class="x">×</span> Light <span class="x">×</span> Room</p>
+          <p class="body" style="margin-top:14px;">When the rig, the lasers, and the raw architecture move together — the room stops being a backdrop and becomes part of the show.</p>
+        </div>
+      </section>
+
+      <section class="chapter split-layout reverse" id="chap-stages" data-align="left" data-start="0.60" data-end="0.74">
+        <div class="chapter-card">
+          <p class="eyebrow">Production-ready</p>
+          <h2 class="chap-heading">Built to carry<br>the whole rig.</h2>
+          <p class="body">Line-array sound, complex lighting trusses, heavy scenic builds — the structure and power on-site are made to support production at full scale, night after night.</p>
+        </div>
+        <img class="side-photo" src="./hall-archival-1.jpg" alt="Archival photo of the steel truss roof structure" />
+      </section>
+
+      <section class="chapter finale" id="chap-finale" data-align="right" data-start="0.78" data-end="0.90">
+        <div class="chapter-card">
+          <p class="eyebrow">For promoters &amp; production teams</p>
+          <h2>An uncompromising backdrop for what's next.</h2>
+          <p class="body" style="margin-top:16px;">Short or long-term dry-hire — festivals, video shoots, film, and brand activations.</p>
+          <div class="cta-row">
+            <a class="btn btn-tickets" href="mailto:blank@blank.com"><span>blank@blank.com</span></a>
+            <a class="btn btn-ghost" href="tel:+1234567890">+1234567890</a>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="rail" aria-hidden="true">
+      <i data-for="chap-hero" class="active"></i>
+      <i data-for="chap-space"></i>
+      <i data-for="chap-fusion"></i>
+      <i data-for="chap-stages"></i>
+      <i data-for="chap-finale"></i>
+    </div>
+  </div>
+
+  <div class="scroll-spacer"></div>
+
+  <footer id="info">
+    <div class="info-wrap">
+      <div class="info-top">
+        <div>
+          <div class="brand-line">PROTEKTOR WAREHOUSE</div>
+          <p>A raw industrial complex in Košice – Šaca. Built for large-scale events — and just as suited to industrial, logistics, and production use between shows.</p>
+        </div>
+      </div>
+
+      <div class="info-cols">
+        <div class="info-col">
+          <h4>Contact</h4>
+          <ul>
+            <li><a href="mailto:blank@blank.com">blank@blank.com</a></li>
+            <li><a href="tel:+1234567890">+1234567890</a></li>
+            <li>Short &amp; long-term dry-hire</li>
+          </ul>
+        </div>
+        <div class="info-col">
+          <h4>Location</h4>
+          <ul>
+            <li>Bočiarska Street</li>
+            <li>044 54 Košice – Šaca</li>
+            <li>Tatra Industrial Estate</li>
+            <li>Plus Code: H6JG+FM Šaca</li>
+            <li><a href="https://www.google.com/maps/search/?api=1&query=Bo%C4%8Diarska%20Street%2C%20044%2054%20Ko%C5%A1ice%20%E2%80%93%20%C5%A0aca" target="_blank" rel="noopener">Get directions →</a></li>
+          </ul>
+        </div>
+        <div class="info-col">
+          <h4>Available for</h4>
+          <ul>
+            <li>Festivals &amp; large-scale raves</li>
+            <li>Music video &amp; film shoots</li>
+            <li>Corporate brand activations</li>
+            <li>Industrial storage &amp; logistics</li>
+            <li>Manufacturing &amp; production use</li>
+          </ul>
+        </div>
+        <div class="info-col">
+          <h4>Getting here</h4>
+          <ul>
+            <li>Bočiar / Tatra bus stop at the main gate</li>
+            <li>Shuttle corridors for major events</li>
+            <li>Nearby Hutníky train station</li>
+            <li>Zero residential noise restrictions</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="info-specs">
+        <div class="info-spec"><span class="num">1,800<span class="unit">m²</span></span><div class="lbl">Indoor hall, 30 × 60m, 7.5m clearance</div></div>
+        <div class="info-spec"><span class="num">5,500<span class="unit">m²</span></span><div class="lbl">Secure paved outdoor terrain</div></div>
+        <div class="info-spec"><span class="num">2,000</span><div class="lbl">Maximum event capacity</div></div>
+        <div class="info-spec"><span class="num">250<span class="unit">+</span></span><div class="lbl">On-site parking, monitored &amp; secure</div></div>
+        <div class="info-spec"><span class="num">32/63<span class="unit">A</span></span><div class="lbl">Industrial power, no generators needed</div></div>
+        <div class="info-spec"><span class="num">2–3</span><div class="lbl">Independent modular zones</div></div>
+        <div class="info-spec"><span class="num">Zero<span class="unit">dB limit</span></span><div class="lbl">No residential neighbors</div></div>
+        <div class="info-spec"><span class="num">24<span class="unit">/7</span></span><div class="lbl">Available for industrial &amp; production use</div></div>
+      </div>
+
+      <div class="info-bottom">
+        <span>Protektor Warehouse © 2026</span>
+        <span>Archival &amp; event photography supplied by the venue</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Frames are packed into sprite sheets (not 300 loose files) to stay well
+    // under GitHub's per-upload file cap and cut HTTP requests from 300 to 5.
+    // Frame count is 150 instead of 300, but drawFrame() crossfades between
+    // the two nearest frames each tick, so motion still reads as continuous.
+    const FRAME_COUNT = 150;
+    const FRAME_W = 800, FRAME_H = 450;
+    const SHEET_COLS = 6, SHEET_ROWS = 5;
+    const FRAMES_PER_SHEET = SHEET_COLS * SHEET_ROWS; // 30
+    const SHEET_COUNT = Math.ceil(FRAME_COUNT / FRAMES_PER_SHEET); // 5
+    const SHEET_PATH = (i) => `./sprites/sprite_${String(i + 1).padStart(2, '0')}.jpg`;
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    const canvas = document.getElementById('reel');
+    const ctx = canvas.getContext('2d');
+    const loadingBar = document.getElementById('loading-bar');
+    const loadingStatus = document.getElementById('loading-status');
+    const errorPanel = document.getElementById('error-panel');
+
+    function resizeCanvas() {
+      canvas.width = innerWidth;
+      canvas.height = innerHeight;
+    }
+    resizeCanvas();
+    addEventListener('resize', resizeCanvas);
+
+    // ---- preload the sprite sheets (5 requests, not 300), then reveal the page ----
+    const sheets = new Array(SHEET_COUNT);
+    let loaded = 0, failed = 0;
+
+    function onSheetSettled() {
+      loaded++;
+      const pct = Math.round((loaded / SHEET_COUNT) * 100);
+      loadingBar.style.width = pct + '%';
+      loadingStatus.textContent = `Loading footage… ${pct}%`;
+      if (loaded === SHEET_COUNT) {
+        if (failed === SHEET_COUNT) {
+          errorPanel.classList.add('show');
+        } else {
+          document.body.classList.add('loaded');
+          drawFrame(0);
+          requestAnimationFrame(tick);
+        }
+      }
+    }
+
+    for (let i = 0; i < SHEET_COUNT; i++) {
+      const img = new Image();
+      img.onload = onSheetSettled;
+      img.onerror = () => { failed++; onSheetSettled(); };
+      img.src = SHEET_PATH(i);
+      sheets[i] = img;
+    }
+
+    // find the source rectangle for a given frame index within its sprite sheet,
+    // then apply the usual cover-crop math so it fills the canvas without distortion
+    function sourceRectFor(index, cw, ch) {
+      const clamped = Math.max(0, Math.min(FRAME_COUNT - 1, index));
+      const sheetIndex = Math.floor(clamped / FRAMES_PER_SHEET);
+      const inSheet = clamped % FRAMES_PER_SHEET;
+      const col = inSheet % SHEET_COLS, row = Math.floor(inSheet / SHEET_COLS);
+      const ox = col * FRAME_W, oy = row * FRAME_H;
+
+      const canvasRatio = cw / ch, imgRatio = FRAME_W / FRAME_H;
+      let sx, sy, sw, sh;
+      if (imgRatio > canvasRatio) {
+        sh = FRAME_H; sw = sh * canvasRatio; sy = 0; sx = (FRAME_W - sw) / 2;
+      } else {
+        sw = FRAME_W; sh = sw / canvasRatio; sx = 0; sy = (FRAME_H - sh) / 2;
+      }
+      return { img: sheets[sheetIndex], sx: ox + sx, sy: oy + sy, sw, sh };
+    }
+
+    function drawFrame(framePos) {
+      const cw = canvas.width, ch = canvas.height;
+      const idxA = Math.floor(framePos);
+      const idxB = Math.min(FRAME_COUNT - 1, idxA + 1);
+      const frac = framePos - idxA;
+
+      const a = sourceRectFor(idxA, cw, ch);
+      if (!a.img || !a.img.complete || !a.img.naturalWidth) return;
+      ctx.globalAlpha = 1;
+      ctx.drawImage(a.img, a.sx, a.sy, a.sw, a.sh, 0, 0, cw, ch);
+
+      // crossfade toward the next frame so 150 frames reads as smoothly as 300 did
+      if (frac > 0.01 && idxB !== idxA) {
+        const b = sourceRectFor(idxB, cw, ch);
+        if (b.img && b.img.complete && b.img.naturalWidth) {
+          ctx.globalAlpha = frac;
+          ctx.drawImage(b.img, b.sx, b.sy, b.sw, b.sh, 0, 0, cw, ch);
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    // ---- scroll progress ----
+    let targetProgress = 0, smoothProgress = 0;
+    function updateScroll() {
+      const max = document.documentElement.scrollHeight - innerHeight;
+      targetProgress = max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
+    }
+    addEventListener('scroll', updateScroll, { passive: true });
+    updateScroll();
+
+    // ---- chapter text: depth-entrance, holds in place, next one overtakes ----
+    const chapters = [...document.querySelectorAll('.chapter')].map((el) => ({
+      el, start: parseFloat(el.dataset.start), end: parseFloat(el.dataset.end),
+      motion: el.dataset.motion || 'emerge'
+    }));
+    const railDots = [...document.querySelectorAll('.rail i')];
+    const FADE = 0.045;
+
+    // Depth motion: everything lives at a Z position inside .hud's perspective(1100px).
+    // "emerge" (default) — arrives from far away (z very negative, small + blurred),
+    //   grows to z:0 (full size, in focus), holds there, then keeps receding
+    //   afterward instead of hard-cutting — it fades to a low, still-visible
+    //   "ghost" floor rather than disappearing.
+    // "recede" — the door sign: starts already in place (z:0, as painted on the
+    //   door in frame one) and sinks into the depth as the camera pulls away,
+    //   also settling at a visible floor rather than vanishing.
+    const GHOST_FLOOR = 0.16;
+    function updateChapters(p) {
+      let activeId = null;
+      chapters.forEach(({ el, start, end, motion }) => {
+        if (p < start - FADE) { el.style.opacity = 0; el.style.pointerEvents = 'none'; return; }
+
+        const inRamp = Math.min(1, Math.max(0, (p - start) / FADE));   // 0 -> 1 arriving
+        const pastEnd = Math.max(0, (p - end) / 0.15);                 // grows without limit once past end
+        let z, opacity, blur;
+
+        if (motion === 'recede') {
+          const outRamp = Math.min(1, Math.max(0, (p - start) / (end - start)));
+          z = -900 * outRamp;
+          opacity = Math.max(GHOST_FLOOR, 1 - outRamp);
+          blur = 0; // the name stays sharp the whole time, even as it shrinks away
+        } else {
+          z = -950 * (1 - inRamp) - 3200 * pastEnd;
+          opacity = p <= end
+            ? inRamp
+            : Math.max(GHOST_FLOOR, 1 - pastEnd);
+          blur = (1 - inRamp) * 11;
+        }
+        el.style.opacity = opacity;
+        el.style.filter = `blur(${blur}px)`;
+        el.style.transform = `translateY(-50%) translateZ(${z}px)`;
+        el.style.pointerEvents = opacity > 0.6 ? 'auto' : 'none';
+        if (p >= start && p <= end) activeId = el.id;
+      });
+      railDots.forEach((d) => d.classList.toggle('active', d.dataset.for === activeId));
+    }
+
+    function tick() {
+      requestAnimationFrame(tick);
+      const smoothing = reduceMotion ? 0.5 : 0.09;
+      smoothProgress += (targetProgress - smoothProgress) * smoothing;
+      // video finishes by 92% scrolled, leaving a calm buffer (held last frame,
+      // no chapter text) before the footer appears — nothing gets covered mid-read
+      const videoProgress = Math.min(1, smoothProgress / 0.92);
+      drawFrame(videoProgress * (FRAME_COUNT - 1));
+      updateChapters(smoothProgress);
+    }
+  </script>
+</body>
+</html>
